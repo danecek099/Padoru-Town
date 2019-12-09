@@ -2,3 +2,5 @@
 /app/node_modules
 /logs/*
 /temp/*
+
+!/**/.gitkeep
