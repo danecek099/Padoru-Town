@@ -27,6 +27,7 @@
   "dependencies": {
     "pixi-smoothie": "^4.5.3",
     "pixi.js": "^4.8.7",
-    "pixi.js-keyboard": "^1.0.9"
+    "pixi.js-keyboard": "^1.0.9",
+    "socket.io": "^2.3.0"
   }
 }

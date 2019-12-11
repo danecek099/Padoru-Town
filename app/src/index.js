@@ -1,7 +1,10 @@
+"use strict";
+
 import * as PIXI from 'pixi.js';
 import Smoothie from "pixi-smoothie";
 import Keyboard from "pixi.js-keyboard";
 import S from "./clientProperties";
+import io from "socket.io-client";
 
 class Padoru {
     constructor(x, y, s, icon) {
@@ -39,11 +42,13 @@ class Game {
             resolution: S.resolution,
         });
         this.renderer.view.style.position = "absolute";
-        this.renderer.view.style.display = "block";
+        // this.renderer.view.style.display = "block";
         this.renderer.view.style.zIndex = 1;
         this.renderer.autoResize = true;
         this.renderer.resize(window.innerWidth, window.innerHeight);
         this.renderer.plugins.interaction.moveWhenInside = true;
+
+        this.renderer.view.style.display = "none";
         document.body.appendChild(this.renderer.view);
 
         this.mainStage = new PIXI.Container();
@@ -54,6 +59,9 @@ class Game {
         this.padoru = null;
 
         window.addEventListener("resize", this.sizr.bind(this));
+        this.inp = document.getElementById("nameInput");
+        this.playButt = document.getElementById("playButton");
+        this.loginContainer = document.getElementById("loginContainer");
 
         this.sizr();
 
@@ -75,18 +83,59 @@ class Game {
         })
         this.smoothie.start();
 
-        new Promise((jo) => {
-            S.importList.forEach(a => PIXI.loader.add(a.name, a.dir));
-            let progress = 0;
-            PIXI.loader.onProgress.add(() => {
-                progress++;
-                const percent = progress / S.importList.length * 100;
-                // console.log(percent);
-            });
-            PIXI.loader.load((loader, resources) => {
-                jo();
-            });
-        }).then(() => this.gameInit());
+        const promArr = [
+            // new Promise((jo) => {
+            //     const conn = () => {
+            //         this.socket = io({
+            //             path: "/s1", 
+            //             transports: ['websocket'],
+            //             // parser: JSONParser
+            //         });
+
+            //         const intr = setInterval(() => {
+            //             clearInterval(intr);
+            //             this.socket.close();
+            //             console.log("new conn try");
+                        
+            //             conn();
+            //         }, 3000);
+    
+            //         this.socket.on("connect", () => {
+            //             clearInterval(intr);
+            //             jo();
+            //         });
+            //     }
+
+            //     conn();
+
+            // }),
+            new Promise((jo) => {
+                S.importList.forEach(a => PIXI.loader.add(a.name, a.dir));
+                let progress = 0;
+                PIXI.loader.onProgress.add(() => {
+                    progress++;
+                    const percent = progress / S.importList.length * 100;
+                    // console.log(percent);
+                });
+                PIXI.loader.load((loader, resources) => {
+                    jo();
+                });
+            })
+        ];
+
+        const startGame = () => {
+            this.gameInit();
+            this.setIo();
+
+            this.playButt.removeEventListener("click", startGame);
+        };
+
+        Promise.all(promArr).then(() => {
+            // this.gameInit();
+            // this.setIo();
+            this.playButt.classList.remove("w3-disabled");
+            this.playButt.addEventListener("click", startGame);
+        });
     }
 
     update() {
@@ -173,11 +222,35 @@ class Game {
     }
 
     gameInit() {
+        this.renderer.style.display = "block";
+        this.loginContainer.style.display = "none";
+
         this.back = PIXI.Sprite.from("mainBack");
         this.gameCont.addChild(this.back);
 
         this.padoru = new Padoru(100, 100, 250, "padoruBlue");
         this.gameCont.addChild(this.padoru.r);
+    }
+
+    setIo() {
+        const s = this.socket;
+        s.on("start", (data) => {
+            // console.log("start");
+
+            this.initGame();
+
+            data.a.forEach((data) => {
+                this.antBase(data);
+            });
+            data.g.forEach((gameO) => {
+                this.gameObject(gameO);
+            });
+        });
+
+        const name = this.getName();
+        this.inp.value = name ? name : this.socket.id.substr(5, 8);
+
+        s.emit("ready");
     }
 
     sizr() {
