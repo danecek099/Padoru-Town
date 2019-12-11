@@ -7,14 +7,17 @@ import S from "./clientProperties";
 import io from "socket.io-client";
 
 class Padoru {
-    constructor(x, y, s, icon) {
-        this.x = x;
-        this.y = y;
-        this.s = s;
-        this.icon = icon;
+    constructor(data) {
+        this.id = data.id;
+
+        this.x = data.x;
+        this.y = data.y;
+        this.s = data.s;
+        this.icon = data.icon;
+        this.name = data.name;
 
         this.r = new PIXI.Container();
-        this.sprite = new PIXI.Sprite.from(icon);
+        this.sprite = new PIXI.Sprite.from(this.icon);
         this.sprite.width = this.s;
         this.sprite.height = this.s;
         this.r.addChild(this.sprite);
@@ -31,6 +34,9 @@ class Padoru {
             xs: this.r.x + this.s,
             ys: this.r.y + this.s
         }
+    }
+    suicide() {
+        this.r.destroy();
     }
 }
 
@@ -57,9 +63,12 @@ class Game {
 
         this.back = null;
         this.padoru = null;
+        this.padoruArr = [];
+        this.name = this.getName();
 
         window.addEventListener("resize", this.sizr.bind(this));
-        this.inp = document.getElementById("nameInput");
+        this.inp = document.getElementById("playerName");
+        this.inp.value = this.name || "";
         this.playButt = document.getElementById("playButton");
         this.loginContainer = document.getElementById("loginContainer");
 
@@ -84,31 +93,31 @@ class Game {
         this.smoothie.start();
 
         const promArr = [
-            // new Promise((jo) => {
-            //     const conn = () => {
-            //         this.socket = io({
-            //             path: "/s1", 
-            //             transports: ['websocket'],
-            //             // parser: JSONParser
-            //         });
+            new Promise((jo) => {
+                const conn = () => {
+                    this.socket = io("http://localhost", {
+                        path: "/s1",
+                        transports: ['websocket'],
+                        // parser: JSONParser
+                    });
 
-            //         const intr = setInterval(() => {
-            //             clearInterval(intr);
-            //             this.socket.close();
-            //             console.log("new conn try");
+                    const intr = setInterval(() => {
+                        clearInterval(intr);
+                        this.socket.close();
+                        console.log("new conn try");
                         
-            //             conn();
-            //         }, 3000);
+                        conn();
+                    }, 3000);
     
-            //         this.socket.on("connect", () => {
-            //             clearInterval(intr);
-            //             jo();
-            //         });
-            //     }
+                    this.socket.on("connect", () => {
+                        clearInterval(intr);
+                        jo();
+                    });
+                }
 
-            //     conn();
+                conn();
 
-            // }),
+            }),
             new Promise((jo) => {
                 S.importList.forEach(a => PIXI.loader.add(a.name, a.dir));
                 let progress = 0;
@@ -124,15 +133,23 @@ class Game {
         ];
 
         const startGame = () => {
-            this.gameInit();
+            // this.gameInit();
             this.setIo();
+
+            if(!this.name) {
+                const inp = this.inp.value;
+                if(inp == "") {
+                    this.name = this.socket.id.substr(5, 8);
+                } else {
+                    this.name = inp;
+                    this.saveName(inp);
+                }
+            }
 
             this.playButt.removeEventListener("click", startGame);
         };
 
         Promise.all(promArr).then(() => {
-            // this.gameInit();
-            // this.setIo();
             this.playButt.classList.remove("w3-disabled");
             this.playButt.addEventListener("click", startGame);
         });
@@ -141,35 +158,38 @@ class Game {
     update() {
         Keyboard.update();
 
-        if (Keyboard.isKeyDown("KeyW")) {
-            this.padoru.r.y -= S.moveSpeed;
-        }
-        if (Keyboard.isKeyDown("KeyS")) {
-            this.padoru.r.y += S.moveSpeed;
-        }
-        if (Keyboard.isKeyDown("KeyA")) {
-            this.padoru.r.x -= S.moveSpeed;
-        }
-        if (Keyboard.isKeyDown("KeyD")) {
-            this.padoru.r.x += S.moveSpeed;
-        }
+        if (this.padoru) {
+            let vx = 0;
+            let vy = 0;
 
-        if(this.padoru) {
-            const dims = this.padoru.dims;
+            if (Keyboard.isKeyDown("KeyW")) {
+                vy = -S.moveSpeed;
+            }
+            if (Keyboard.isKeyDown("KeyS")) {
+                vy = S.moveSpeed;
+            }
+            if (Keyboard.isKeyDown("KeyA")) {
+                vx = -S.moveSpeed;
+            }
+            if (Keyboard.isKeyDown("KeyD")) {
+                vx = S.moveSpeed;
+            }
             
-            if(dims.x < -this.gameCont.x) {
+            const dims = this.padoru.dims;
+
+            if (dims.x < -this.gameCont.x) {
                 if (this.gameCont.x + S.moveSpeed < 0) {
                     this.gameCont.x += S.moveSpeed;
                 } else {
-                    this.padoru.r.x += S.moveSpeed;
+                    vx += S.moveSpeed;
                 }
             }
             
-            if(dims.y < -this.gameCont.y) {
+            if (dims.y < -this.gameCont.y) {
                 if (this.gameCont.y + S.moveSpeed < 0) {
                     this.gameCont.y += S.moveSpeed;
                 } else {
-                    this.padoru.r.y += S.moveSpeed;
+                    vy += S.moveSpeed;
                 }
             }
             
@@ -177,7 +197,7 @@ class Game {
                 if (this.gameCont.x - S.moveSpeed > this.borderW - this.back.width) {
                     this.gameCont.x -= S.moveSpeed;
                 } else {
-                    this.padoru.r.x -= S.moveSpeed;
+                    vx -= S.moveSpeed;
                 }
             }
 
@@ -185,8 +205,18 @@ class Game {
                 if (this.gameCont.y - S.moveSpeed > this.borderH - this.back.height) {
                     this.gameCont.y -= S.moveSpeed;
                 } else {
-                    this.padoru.r.y -= S.moveSpeed;
+                    vy -= S.moveSpeed;
                 }
+            }
+
+            if (vx != 0 || vy != 0) {
+                this.padoru.r.x += vx;
+                this.padoru.r.y += vy;
+
+                this.socket.emit("move", {
+                    x: this.padoru.r.x,
+                    y: this.padoru.r.y
+                });
             }
         }
 
@@ -221,36 +251,71 @@ class Game {
         }
     }
 
-    gameInit() {
-        this.renderer.style.display = "block";
-        this.loginContainer.style.display = "none";
-
+    gameInit(data) {
         this.back = PIXI.Sprite.from("mainBack");
         this.gameCont.addChild(this.back);
 
-        this.padoru = new Padoru(100, 100, 250, "padoruBlue");
+        this.padoru = new Padoru({
+            id: this.socket.id,
+            x: 100,
+            y: 100,
+            s: 250,
+            icon: "padoruBlue",
+            name: this.name
+        });
         this.gameCont.addChild(this.padoru.r);
+
+        for (const p of data) {
+            const padoru = new Padoru(p);
+            this.gameCont.addChild(padoru.r);
+            this.padoruArr.push(padoru);
+        }
+
+        this.renderer.view.style.display = "block";
+        this.loginContainer.style.display = "none";
     }
 
     setIo() {
         const s = this.socket;
         s.on("start", (data) => {
-            // console.log("start");
+            console.log("start", data);
 
-            this.initGame();
+            this.gameInit(data);
+        });
+        s.on("show", data => console.log(data));
+        s.on("connect", data => {
+            console.log("(re)connected");
+            s.emit("ready");
+        });
+        s.on("new", data => {
+            if (data.id != this.socket.id) {
+                console.log("new", data);
+    
+                const padoru = new Padoru(data);
+                this.gameCont.addChild(padoru.r);
+                this.padoruArr.push(padoru);
+            }
+        });
+        s.on("move", data => {
+            if(data.id != this.socket.id) {
+                console.log("move", data);
+            }
+        });
+        s.on("dis", data => {
+            console.log("dis", data);
 
-            data.a.forEach((data) => {
-                this.antBase(data);
-            });
-            data.g.forEach((gameO) => {
-                this.gameObject(gameO);
-            });
+            for (let i = 0; i < this.padoruArr.length; i++) {
+                console.log(i, this.padoru[i]);
+                if (this.padoruArr[i].id == data.id) {
+                    console.log(i, this.padoru[i]);
+                    this.padoru[i].suicide();
+                    this.padoruArr.splice(i, 1);
+                    return;
+                }
+            }
         });
 
-        const name = this.getName();
-        this.inp.value = name ? name : this.socket.id.substr(5, 8);
-
-        s.emit("ready");
+        s.emit("ready", {name: this.name});
     }
 
     sizr() {
@@ -265,6 +330,24 @@ class Game {
 
         this.mainStage.scale.set(this.scaleRatio, this.scaleRatio);
     }
+
+    getName() {
+        const cookie = document.cookie.replace(/(?:(?:^|.*;\s*)playaName\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+
+        return cookie ? cookie : null;
+    }
+
+    saveName(name) {
+        document.cookie = `playaName=${name}; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
+    }
+
+    test() {
+        this.padoru.suicide();
+        this.padoru = new Padoru(100, 100, 250, "padoruBlue");
+        this.gameCont.addChild(this.padoru.r);
+    }
 }
 
-window.game = new Game();
+window.onload = function() {
+    window.game = new Game();
+}
