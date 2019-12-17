@@ -6,11 +6,15 @@ class Padoru {
     constructor(id, name) {
         this.id = id;
 
-        this.x = 100;
-        this.y = 100;
-        this.s = 250;
-        this.icon = "padoruBlue";
+        this.x = 0;
+        this.y = 0;
+        this.icon = "padoruOriginal";
         this.name = name;
+    }
+
+    move(x, y) {
+        this.x = x;
+        this.y = y;
     }
 }
 
@@ -22,32 +26,50 @@ class Room {
     }
 
     addPlayer(socket, name) {
-        socket.join(this.id);
+        socket.join(this.roomId);
         socket.roomId = this.roomId;
 
-        socket.emit("start", this.padoruArr);
+        socket.emit("room" + (this.roomId + 1), Object.values(this.padoruArr));
 
         const padoru = new Padoru(socket.id, name);
-        this.padoruArr.push(padoru);
+        this.padoruArr[padoru.id] = padoru;
 
-        this.io.in(this.id).emit("new", padoru);
+        this.io.in(this.roomId).emit("new", padoru);
     }
-    
     move(data, socket) {
-         this.io.in(this.id).emit("move", {
+         this.io.in(this.roomId).emit("move", {
             id: socket.id,
             x: data.x,
             y: data.y
         });
+
+        this.padoruArr[socket.id] && this.padoruArr[socket.id].move(data.x, data.y);
     }
-    removePlayer(data, socket) {
-        for (let i = 0; i < this.padoruArr.length; i++) {
-            if (this.padoruArr[i].id == socket.id) {
-                this.padoruArr.splice(i, 1);
-                this.io.in(this.id).emit("dis", {id: socket.id});
-                return;
-            }
+    action1(data, socket) {
+        this.io.in(this.roomId).emit("action1", {
+            id: socket.id
+        });
+    }
+    action2(data, socket) {
+        this.io.in(this.roomId).emit("action2", {
+            id: socket.id
+        });
+    }
+    removePlayer(socket) {
+        if (this.padoruArr[socket.id]) {
+            return new Promise((jo) => {
+                socket.leave(this.roomId, () => {
+                    this.io.in(this.roomId).emit("dis", {
+                        id: socket.id
+                    });
+                    delete this.padoruArr[socket.id];
+
+                    jo();
+                });
+            });
         }
+
+        return Promise.resolve();
     }
 }
 
@@ -57,7 +79,8 @@ class Logic {
         this.io = Sio().listen("300" + roomId);
 
         this.roomArr = [
-            new Room(0, this.io)
+            new Room(0, this.io),
+            new Room(1, this.io)
         ];
 
         this.setIo();
@@ -70,35 +93,27 @@ class Logic {
             socket.emit("show", "SERVER: Connected to w" + this.roomId);
             console.log("Client " + socket.id);
 
-            const mainF = d => {
+            socket.on("ready", d => {
                 if (!socket.eventsAdded) {
                     socket.on("move", data => this.move(data, socket));
                     socket.on("disconnect", data => this.disconnect(data, socket));
+                    socket.on("action1", data => this.action1(data, socket));
+                    socket.on("action2", data => this.action2(data, socket));
+                    socket.on("room1", data => this.room1(data, socket));
+                    socket.on("room2", data => this.room2(data, socket));
 
                     socket.eventsAdded = true;
                 }
 
-                this.connect(d, socket);
-            }
-
-            socket.on("ready", mainF);
+                this.room1(d, socket);
+            });
         });
     }
     remove(socket) {
-        for (const room of this.roomArr) {
-            for (const padoru of room.padoruArr) {
-                if (socket.id == padoru.id) {
-                    return room.removePlayer(socket);
-                }
-            }
+        if (socket.roomId || socket.roomId === 0) {
+            return this.roomArr[socket.roomId].removePlayer(socket);
         }
         return Promise.resolve();
-    }
-    connect(data, socket) {
-        console.log("connect", data, socket.id);
-        this.remove(socket).then(() => {
-            this.roomArr[0].addPlayer(socket, data.name);
-        });
     }
     
     // events
@@ -107,9 +122,29 @@ class Logic {
             this.roomArr[socket.roomId].move(data, socket);
         }
     }
+    action1(data, socket) {
+        if (socket.roomId || socket.roomId === 0) {
+            this.roomArr[socket.roomId].action1(data, socket);
+        }
+    }
+    action2(data, socket) {
+        if (socket.roomId || socket.roomId === 0) {
+            this.roomArr[socket.roomId].action2(data, socket);
+        }
+    }
+    room1(data, socket) {
+        this.remove(socket).then(() => {
+            this.roomArr[0].addPlayer(socket, data.name);
+        }).catch(e => console.log(socket.id, "no name"));
+    }
+    room2(data, socket) {
+        this.remove(socket).then(() => {
+            this.roomArr[1].addPlayer(socket, data.name);
+        }).catch(e => console.log(socket.id, "no name"));
+    }
     disconnect(data, socket) {
         if (socket.roomId || socket.roomId === 0) {
-            this.roomArr[socket.roomId].removePlayer(data, socket);
+            this.roomArr[socket.roomId].removePlayer(socket);
         }
     }
 }
