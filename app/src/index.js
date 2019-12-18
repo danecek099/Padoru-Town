@@ -16,17 +16,26 @@ class Padoru {
         this.y = data.y;
         this.s = 200;
         this.name = data.name;
+        this.activeSprite = null;
 
         this.r = new PIXI.Container();
         this.r.x = this.x;
         this.r.y = this.y;
+
+        this.nameText = new PIXI.Text(this.name, {
+            fontSize: 16,
+            fontWeight: "700",
+            fill: 0xffffff
+        });
+        this.nameText.x = - this.nameText.width / 2;
+        this.nameText.y = - this.s / 2 - 20;
+        this.r.addChild(this.nameText);
 
         // this.border = new PIXI.Graphics();
         // this.border.lineStyle(4, 0x1b1bcf, 1);
         // this.border.drawRect(-this.s/2, -this.s/2, this.s, this.s);
         // this.r.addChild(this.border);
 
-        this.activeSprite = null;
     }
     get dims() {
         return {
@@ -72,6 +81,32 @@ class Padoru {
             }
         }
     }
+    chat(text) {
+        const textt = new PIXI.Text(text, {
+            fontSize: 16,
+            fontWeight: "400",
+            fill: 0xffffff
+        });
+        textt.x = -textt.width / 2;
+        textt.y = -this.s / 2 - 50;
+
+        const chatBox = new PIXI.Graphics();
+        chatBox.beginFill(0x808599);
+        chatBox.alpha = .6;
+        chatBox.drawRoundedRect(textt.x - 8, textt.y - 8, textt.width + 16, textt.height + 16, 5);
+        chatBox.endFill();
+
+        this.r.addChild(chatBox, textt);
+
+        setTimeout(() => {
+            chatBox.destroy();
+            textt.destroy();
+        }, 3000);
+    }
+
+    action1() {}
+
+    action2() {}
 }
 
 class Present {
@@ -191,7 +226,7 @@ class PadoruOriginal extends Padoru {
 class Game {
     constructor() {
         this.renderer = new PIXI.WebGLRenderer({
-            // antialias: true,
+            antialias: true,
             powerPreference: "high-performance",
             resolution: S.resolution,
         });
@@ -222,6 +257,8 @@ class Game {
         this.gameInitDone = false;
         this.roomUpdate = null;
         this.name = this.getName();
+        this.keysInUse = false;
+        this.roomIntr = null;
         
         this.b = new PIXI.extras.Bump();
 
@@ -229,7 +266,8 @@ class Game {
         this.inp = document.getElementById("playerName");
         this.inp.value = this.name || "";
         this.playButt = document.getElementById("playButton");
-        this.loginContainer = document.getElementById("loginContainer");
+        this.chatBox = document.getElementById("chatBox");
+        this.chat = document.getElementById("chat");
 
         this.sizr();
 
@@ -239,7 +277,7 @@ class Game {
             root: this.mainStage,
             update: this.update.bind(this),
             fps: 15,
-            renderFps: 60,
+            // renderFps: 60,
             properties: {
                 position: true,
                 rotation: false,
@@ -254,11 +292,10 @@ class Game {
         const promArr = [
             new Promise((jo) => {
                 const conn = () => {
-                    this.socket = io("http://localhost", {
-                    // this.socket = io({
+                    // this.socket = io("http://localhost", {
+                    this.socket = io({
                         path: "/s1",
                         transports: ['websocket'],
-                        // parser: JSONParser
                     });
 
                     const intr = setInterval(() => {
@@ -300,25 +337,29 @@ class Game {
             src: ['assets/slapSound.wav'],
             volume: .5
         });
+        this.kannaSound = new Howl({
+            src: ['assets/kanna3.mp3'],
+            volume: .5
+        });
 
         const startGame = () => {
-            this.setIo();
-
-            if(!this.name) {
-                const inp = this.inp.value;
-                if(inp == "") {
+            const inp = this.inp.value;
+            if(inp == "") {
+                if(!this.name)
                     this.name = this.socket.id.substr(5, 8);
-                } else {
-                    this.name = inp;
-                    this.saveName(inp);
-                }
+            } else {
+                this.name = inp;
+                this.saveName(inp);
             }
 
             this.playButt.removeEventListener("click", startGame);
+            this.setIo();
         };
 
         Promise.all(promArr).then(() => {
             this.playButt.classList.remove("w3-disabled");
+
+            this.playButt.innerHTML = "Play";
             this.playButt.addEventListener("click", startGame);
         });
     }
@@ -331,16 +372,16 @@ class Game {
             let vx = 0;
             let vy = 0;
 
-            if (Keyboard.isKeyDown("KeyW")) {
+            if (!this.keysInUse && Keyboard.isKeyDown("KeyW")) {
                 vy = -S.moveSpeed;
             }
-            if (Keyboard.isKeyDown("KeyS")) {
+            if (!this.keysInUse && Keyboard.isKeyDown("KeyS")) {
                 vy = S.moveSpeed;
             }
-            if (Keyboard.isKeyDown("KeyA")) {
+            if (!this.keysInUse && Keyboard.isKeyDown("KeyA")) {
                 vx = -S.moveSpeed;
             }
-            if (Keyboard.isKeyDown("KeyD")) {
+            if (!this.keysInUse && Keyboard.isKeyDown("KeyD")) {
                 vx = S.moveSpeed;
             }
             
@@ -353,6 +394,9 @@ class Game {
                     vx += S.moveSpeed;
                 }
             }
+            if (this.gameCont.x > 0) {
+                this.gameCont.x = 0;
+            }
             
             if (dims.y < -this.gameCont.y) {
                 if (this.gameCont.y + S.moveSpeed < 0) {
@@ -360,6 +404,9 @@ class Game {
                 } else {
                     vy += S.moveSpeed;
                 }
+            }
+            if (this.gameCont.y > 0) {
+                this.gameCont.y = 0;
             }
             
             if (dims.xs > this.borderW - this.gameCont.x) {
@@ -369,6 +416,9 @@ class Game {
                     vx -= S.moveSpeed;
                 }
             }
+            if (this.gameCont.x < this.borderW - this.back.width) {
+                this.gameCont.x = this.borderW - this.back.width;
+            }
 
             if (dims.ys > this.borderH - this.gameCont.y) {
                 if (this.gameCont.y - S.moveSpeed > this.borderH - this.back.height) {
@@ -376,6 +426,9 @@ class Game {
                 } else {
                     vy -= S.moveSpeed;
                 }
+            }
+            if (this.gameCont.y < this.borderH - this.back.height) {
+                this.gameCont.y = this.borderH - this.back.height;
             }
 
             if (vx != 0 || vy != 0) {
@@ -387,54 +440,37 @@ class Game {
                 });
             }
         }
-
-        if (this.gameCont.left) { // doleva
-            this.gameCont.vx = S.moveSpeed;
-            this.gameCont.changed = true;
-        }
-        if (this.gameCont.up) { // nahoru
-            this.gameCont.vy = S.moveSpeed;
-            this.gameCont.changed = true;
-        }
-        if (this.gameCont.right) { // doprava
-            this.gameCont.vx = -S.moveSpeed;
-            this.gameCont.changed = true;
-        }
-        if (this.gameCont.down) { // dolu
-            this.gameCont.vy = -S.moveSpeed;
-            this.gameCont.changed = true;
-        }
-        if (!this.gameCont.changed) {
-            this.gameCont.vx = this.gameCont.vy = 0;
-        } else {
-            this.gameCont.x += this.gameCont.vx;
-            this.gameCont.y += this.gameCont.vy;
-
-            if (this.gameCont.x > 0) this.gameCont.x = 0;
-            if (this.gameCont.y > 0) this.gameCont.y = 0;
-            if (this.gameCont.x < this.borderW - this.back.width) this.gameCont.x = this.borderW - this.back.width;
-            if (this.gameCont.y < this.borderH - this.back.height) this.gameCont.y = this.borderH - this.back.height;
-
-            this.gameCont.vx = this.gameCont.vy = 0;
-        }
-
     }
 
-    gameInit(data) {
+    gameInit() {
         Keyboard.events.on('pressed_Digit1', null, (keyCode, event) => {
-            if (this.padoru.action1()) {
+            if (!this.keysInUse && this.padoru.action1()) {
                 this.padoruSound.play();
                 this.socket.emit("action1");
             }
         });
         Keyboard.events.on('pressed_Digit2', null, (keyCode, event) => {
-            if (this.padoru.action2()) {
+            if (!this.keysInUse && this.padoru.action2()) {
                 this.socket.emit("action2");
             }
         });
+        Keyboard.events.on('pressed_Enter', null, (keyCode, event) => {            
+            if (this.chatBox.style.display == "none") {
+                this.keysInUse = true;
+                this.chatBox.style.display = "block";
+                this.chat.focus();
+            } else {
+                this.keysInUse = false
+                this.chatBox.style.display = "none";
+
+                this.padoru.chat(this.chat.value);
+                this.socket.emit("chat", this.chat.value);
+                this.chat.value = "";
+            }
+
+        });
 
         this.renderer.view.style.display = "block";
-        this.loginContainer.style.display = "none";
         this.gameInitDone = true;
     }
 
@@ -442,22 +478,43 @@ class Game {
         this.padoruArr.length = 0;
         this.spawnData.x = 550;
         this.spawnData.y = 620;
+        clearInterval(this.roomIntr);
+        this.roomIntr = null;
 
         this.back = PIXI.Sprite.from("mainBack");
         this.gameCont.addChild(this.back);
 
-        const sign = new PIXI.Sprite.from("arrowPepe");
+        const sign = new PIXI.Sprite.from("pepeSign");
         sign.x = 900;
         sign.y = 400;
         sign.width = 150;
         sign.height = 150;
         sign.interactive = true;
         sign.buttonMode = true;
-        sign.on("click", () => this.changeRoom(2))
-
+        sign.on("click", () => this.changeRoom(2));
         this.gameCont.addChild(sign);
 
-        this.padoru = this.newPadoru({x: 0, y: 0, icon: "padoruOriginal"});
+        const classS = new PIXI.Sprite.from("classSign");
+        classS.x = 300;
+        classS.y = 400;
+        classS.width = 150;
+        classS.height = 150;
+        classS.interactive = true;
+        classS.buttonMode = true;
+        classS.on("click", () => this.changeRoom(4));
+        this.gameCont.addChild(classS);
+
+        const beach = new PIXI.Sprite.from("beachSign");
+        beach.x = 600;
+        beach.y = 900;
+        beach.width = 150;
+        beach.height = 150;
+        beach.interactive = true;
+        beach.buttonMode = true;
+        beach.on("click", () => this.changeRoom(5));
+        this.gameCont.addChild(beach);
+
+        this.padoru = this.newPadoru({x: 0, y: 0, icon: "padoruOriginal", name: this.name});
         this.gameCont.addChild(this.padoru.r);
 
         for (const p of data) {
@@ -473,6 +530,8 @@ class Game {
         this.padoruArr.length = 0;
         this.spawnData.x = 1000;
         this.spawnData.y = 650;
+        clearInterval(this.roomIntr);
+        this.roomIntr = null;
 
         this.gameCont.removeChildren();
         this.padoruArr = [];
@@ -481,6 +540,16 @@ class Game {
         const backSlap = PIXI.Sprite.from("pepeBackSlap");
         backSlap.visible = false;
         this.gameCont.addChild(this.back, backSlap);
+
+        const sign = new PIXI.Sprite.from("spawnSign");
+        sign.x = 1730;
+        sign.y = 760;
+        sign.width = 150;
+        sign.height = 150;
+        sign.interactive = true;
+        sign.buttonMode = true;
+        sign.on("click", () => this.changeRoom(1));
+        this.gameCont.addChild(sign);
 
         const lever = new PIXI.Sprite.from("lever");
         lever.x = 1200;
@@ -497,8 +566,15 @@ class Game {
             }, 1100);
             this.slapSound.play();
         });
-
         this.gameCont.addChild(lever);
+        
+        const door = new PIXI.Sprite.from("door");
+        door.x = 1668;
+        door.y = 162;
+        door.interactive = true;
+        door.buttonMode = true;
+        door.on("click", () => this.changeRoom(3));
+        this.gameCont.addChild(door);
 
         this.padoru.r.x = this.spawnData.x;
         this.padoru.r.y = this.spawnData.y;
@@ -513,6 +589,166 @@ class Game {
         if(!this.gameInitDone) this.gameInit();
     }
 
+    room3init(data) {
+        this.padoruArr.length = 0;
+        this.spawnData.x = 1300;
+        this.spawnData.y = 650;
+        clearInterval(this.roomIntr);
+        this.roomIntr = null;
+
+        this.gameCont.removeChildren();
+        this.padoruArr = [];
+
+        this.back = PIXI.Sprite.from("wcBack");
+        this.gameCont.addChild(this.back);
+
+        const door = new PIXI.Sprite.from("wcDoor");
+        door.x = 1398;
+        door.y = 167;
+        door.interactive = true;
+        door.buttonMode = true;
+        door.on("click", () => this.changeRoom(2));
+        this.gameCont.addChild(door);
+
+        const aquaArr = [
+            new PIXI.Sprite.from("aqua1"),
+            new PIXI.Sprite.from("aqua2"),
+            new PIXI.Sprite.from("aqua3")
+        ];
+        aquaArr[0].x = aquaArr[1].x = aquaArr[2].x = 1050;
+        aquaArr[0].y = aquaArr[1].y = aquaArr[2].y = 180;
+        aquaArr[1].visible = aquaArr[2].visible = false;
+        this.gameCont.addChild(...aquaArr);
+        let i = 0;
+        this.roomIntr = setInterval(() => {
+            aquaArr.forEach((element, index) => {
+                if(i == index) element.visible = true;
+                else element.visible = false;
+            });
+
+            if(++i > aquaArr.length - 1) i = 0;
+        }, 150);
+
+        this.padoru.r.x = this.spawnData.x;
+        this.padoru.r.y = this.spawnData.y;
+        this.gameCont.addChild(this.padoru.r);
+
+        for (const p of data) {
+            const padoru = this.newPadoru(p);
+            this.gameCont.addChild(padoru.r);
+            this.padoruArr[padoru.id] = padoru;
+        }
+
+        if (!this.gameInitDone) this.gameInit();
+    }
+
+    room4init(data) {
+        this.padoruArr.length = 0;
+        this.spawnData.x = 1230;
+        this.spawnData.y = 850;
+        clearInterval(this.roomIntr);
+        this.roomIntr = null;
+
+        this.back = PIXI.Sprite.from("classroomBack");
+        this.gameCont.addChild(this.back);
+
+        const sign = new PIXI.Sprite.from("spawnSign");
+        sign.x = 70;
+        sign.y = 850;
+        sign.width = 150;
+        sign.height = 150;
+        sign.interactive = true;
+        sign.buttonMode = true;
+        sign.on("click", () => this.changeRoom(1));
+        this.gameCont.addChild(sign);
+
+        const kanna = new PIXI.Sprite.from("kanna");
+        kanna.x = 600;
+        kanna.y = 380;
+        kanna.width = 250;
+        kanna.height = 250;
+        kanna.rotation = -.04;
+        kanna.interactive = true;
+        kanna.buttonMode = true;
+        kanna.on("click", () => this.kannaSound.play());
+        this.gameCont.addChild(kanna);
+
+        this.padoru = this.newPadoru({
+            x: 0,
+            y: 0,
+            icon: "padoruOriginal",
+            name: this.name
+        });
+        this.gameCont.addChild(this.padoru.r);
+
+        for (const p of data) {
+            const padoru = this.newPadoru(p);
+            this.gameCont.addChild(padoru.r);
+            this.padoruArr[padoru.id] = padoru;
+        }
+
+        if (!this.gameInitDone) this.gameInit();
+    }
+
+    room5init(data) {
+        this.padoruArr.length = 0;
+        this.spawnData.x = 330;
+        this.spawnData.y = 790;
+        clearInterval(this.roomIntr);
+        this.roomIntr = null;
+
+        this.back = PIXI.Sprite.from("beachBack");
+        this.gameCont.addChild(this.back);
+
+        const sign = new PIXI.Sprite.from("spawnSign");
+        sign.x = 100;
+        sign.y = 950;
+        sign.width = 150;
+        sign.height = 150;
+        sign.interactive = true;
+        sign.buttonMode = true;
+        sign.on("click", () => this.changeRoom(1));
+        this.gameCont.addChild(sign);
+
+        const aquaArr = [
+            new PIXI.Sprite.from("aquaDance1"),
+            new PIXI.Sprite.from("aquaDance2"),
+            new PIXI.Sprite.from("aquaDance3"),
+            new PIXI.Sprite.from("aquaDance4")
+        ];
+        aquaArr[0].x = aquaArr[1].x = aquaArr[2].x = aquaArr[3].x = 800;
+        aquaArr[0].y = aquaArr[1].y = aquaArr[2].y = aquaArr[3].y = 400;
+        aquaArr[0].width = aquaArr[1].width = aquaArr[2].width = aquaArr[3].width = 190;
+        aquaArr[0].height = aquaArr[1].height = aquaArr[2].height = aquaArr[3].height = 250;
+        aquaArr[1].visible = aquaArr[2].visible = aquaArr[3].visible = false;
+        this.gameCont.addChild(...aquaArr);
+        let i = 0;
+        this.roomIntr = setInterval(() => {
+            aquaArr.forEach((element, index) => {
+                if(i == index) element.visible = true;
+                else element.visible = false;
+            });
+
+            if(++i > aquaArr.length - 1) i = 0;
+        }, 150);
+
+        this.padoru = this.newPadoru({
+            x: 0,
+            y: 0,
+            icon: "padoruOriginal",
+            name: this.name
+        });
+        this.gameCont.addChild(this.padoru.r);
+
+        for (const p of data) {
+            const padoru = this.newPadoru(p);
+            this.gameCont.addChild(padoru.r);
+            this.padoruArr[padoru.id] = padoru;
+        }
+
+        if (!this.gameInitDone) this.gameInit();
+    }
+
     setIo() {
         const s = this.socket;
         s.on("room1", data => {
@@ -520,6 +756,15 @@ class Game {
         });
         s.on("room2", data => {
             this.room2init(data);
+        });
+        s.on("room3", data => {
+            this.room3init(data);
+        });
+        s.on("room4", data => {
+            this.room4init(data);
+        });
+        s.on("room5", data => {
+            this.room5init(data);
         });
         s.on("show", data => console.log(data));
         s.on("connect", data => {
@@ -557,12 +802,16 @@ class Game {
                 }
             }
         });
+        s.on("chat", data => {
+            if(data.id != this.socket.id) {
+                if(this.padoruArr[data.id]) { 
+                    this.padoruArr[data.id].chat(data.chat);
+                }
+            }
+        });
         s.on("dis", data => {
             this.padoruArr[data.id] && this.padoruArr[data.id].suicide();
             delete this.padoruArr[data.id];
-        });
-        s.on("room2", data => {
-            this.room2init(data);
         });
 
         s.emit("ready", {name: this.name});
