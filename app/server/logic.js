@@ -3,12 +3,12 @@
 const Sio = require("socket.io");
 
 class Padoru {
-    constructor(id, name) {
+    constructor(id, name, icon) {
         this.id = id;
 
         this.x = 0;
         this.y = 0;
-        this.icon = "padoruOriginal";
+        this.icon = icon || "padoruOriginal";
         this.name = name;
     }
 
@@ -25,14 +25,14 @@ class Room {
         this.padoruArr = [];
     }
 
-    addPlayer(socket, name) {
+    addPlayer(socket, data) {
         socket.join(this.roomId);
         socket.roomId = this.roomId;
-        console.log("room" + this.roomId, name);
+        console.log("room" + this.roomId, data.name);
 
         socket.emit("room" + (this.roomId + 1), Object.values(this.padoruArr));
 
-        const padoru = new Padoru(socket.id, name);
+        const padoru = new Padoru(socket.id, data.name, data.icon || null);
         this.padoruArr[padoru.id] = padoru;
 
         this.io.in(this.roomId).emit("new", padoru);
@@ -62,6 +62,14 @@ class Room {
             chat: data
         });
     }
+    padoruChange(data, socket) {
+        this.padoruArr[socket.id].icon = data.icon;
+
+        this.io.in(this.roomId).emit("padoruChange", {
+            id: socket.id,
+            icon: data.icon
+        });
+    }
     removePlayer(socket) {
         if (this.padoruArr[socket.id]) {
             return new Promise((jo) => {
@@ -69,9 +77,9 @@ class Room {
                     this.io.in(this.roomId).emit("dis", {
                         id: socket.id
                     });
+                    
+                    jo(this.padoruArr[socket.id]);
                     delete this.padoruArr[socket.id];
-
-                    jo();
                 });
             });
         }
@@ -115,6 +123,7 @@ class Logic {
                     socket.on("room4", data => this.room4(data, socket));
                     socket.on("room5", data => this.room5(data, socket));
                     socket.on("chat", data => this.chat(data, socket));
+                    socket.on("padoruChange", data => this.padoruChange(data, socket));
 
                     socket.eventsAdded = true;
                 }
@@ -151,29 +160,77 @@ class Logic {
             this.roomArr[socket.roomId].chat(data, socket);
         }
     }
+    padoruChange(data, socket) {
+        if (socket.roomId || socket.roomId === 0) {
+            this.roomArr[socket.roomId].padoruChange(data, socket);
+        }
+    }
     room1(data, socket) {
-        this.remove(socket).then(() => {
-            this.roomArr[0].addPlayer(socket, data.name);
+        this.remove(socket).then(padoru => {
+            if(padoru) {
+                this.roomArr[0].addPlayer(socket, {
+                    name: data.name,
+                    icon: padoru.icon
+                });
+            } else {
+                this.roomArr[0].addPlayer(socket, {name: data.name});
+            }
         }).catch(e => console.log(socket.id, "no name"));
     }
     room2(data, socket) {
-        this.remove(socket).then(() => {
-            this.roomArr[1].addPlayer(socket, data.name);
+        this.remove(socket).then(padoru => {
+            if (padoru) {
+                this.roomArr[1].addPlayer(socket, {
+                    name: data.name,
+                    icon: padoru.icon
+                });
+            } else {
+                this.roomArr[1].addPlayer(socket, {
+                    name: data.name
+                });
+            }
         }).catch(e => console.log(socket.id, "no name"));
     }
     room3(data, socket) {
-        this.remove(socket).then(() => {
-            this.roomArr[2].addPlayer(socket, data.name);
+        this.remove(socket).then(padoru => {
+            if (padoru) {
+                this.roomArr[2].addPlayer(socket, {
+                    name: data.name,
+                    icon: padoru.icon
+                });
+            } else {
+                this.roomArr[2].addPlayer(socket, {
+                    name: data.name
+                });
+            }
         }).catch(e => console.log(socket.id, "no name"));
     }
     room4(data, socket) {
-        this.remove(socket).then(() => {
-            this.roomArr[3].addPlayer(socket, data.name);
+        this.remove(socket).then(padoru => {
+            if (padoru) {
+                this.roomArr[3].addPlayer(socket, {
+                    name: data.name,
+                    icon: padoru.icon
+                });
+            } else {
+                this.roomArr[3].addPlayer(socket, {
+                    name: data.name
+                });
+            }
         }).catch(e => console.log(socket.id, "no name"));
     }
     room5(data, socket) {
-        this.remove(socket).then(() => {
-            this.roomArr[4].addPlayer(socket, data.name);
+        this.remove(socket).then(padoru => {
+            if (padoru) {
+                this.roomArr[4].addPlayer(socket, {
+                    name: data.name,
+                    icon: padoru.icon
+                });
+            } else {
+                this.roomArr[4].addPlayer(socket, {
+                    name: data.name
+                });
+            }
         }).catch(e => console.log(socket.id, "no name"));
     }
     disconnect(data, socket) {

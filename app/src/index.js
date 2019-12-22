@@ -15,21 +15,13 @@ class Padoru {
         this.x = data.x;
         this.y = data.y;
         this.s = 200;
-        this.name = data.name;
         this.activeSprite = null;
 
         this.r = new PIXI.Container();
         this.r.x = this.x;
         this.r.y = this.y;
 
-        this.nameText = new PIXI.Text(this.name, {
-            fontSize: 16,
-            fontWeight: "700",
-            fill: 0xffffff
-        });
-        this.nameText.x = - this.nameText.width / 2;
-        this.nameText.y = - this.s / 2 - 20;
-        this.r.addChild(this.nameText);
+        this.setName(data.name);
 
         // this.border = new PIXI.Graphics();
         // this.border.lineStyle(4, 0x1b1bcf, 1);
@@ -77,7 +69,7 @@ class Padoru {
         for (const key in this.spriteObj) {
             if (key != type && this.spriteObj.hasOwnProperty(key)) {
                 this.spriteObj[key].visible = false;
-                if (this.spriteObj[key].scale.x < 0) this.spriteObj[key].scale.x *= -1;
+                if (this.spriteObj[key].scale.x < 0 && !this.spriteObj[key].preserveScale) this.spriteObj[key].scale.x *= -1;
             }
         }
     }
@@ -102,6 +94,20 @@ class Padoru {
             chatBox.destroy();
             textt.destroy();
         }, 3000);
+    }
+    setName(name) {
+        this.name = name;
+
+        if(this.nameText) this.r.removeChild(this.nameText);
+
+        this.nameText = new PIXI.Text(this.name, {
+            fontSize: 16,
+            fontWeight: "700",
+            fill: 0xffffff
+        });
+        this.nameText.x = -this.nameText.width / 2;
+        this.nameText.y = -this.s / 2 - 20;
+        this.r.addChild(this.nameText);
     }
 
     action1() {}
@@ -223,6 +229,41 @@ class PadoruOriginal extends Padoru {
     }
 }
 
+class PadoruGeneric extends Padoru {
+    constructor(eurobeat) {
+        super(eurobeat);
+
+        this.spriteObj = {
+            right: this.makeTexture(eurobeat.icon),
+            left: this.makeTexture(eurobeat.icon)
+        };
+
+        this.spriteObj.right.visible = true;
+        this.spriteObj.left.scale.x *= -1;
+        this.spriteObj.left.preserveScale = true;
+
+        this.activeSprite = "right";
+
+        for (const key in this.spriteObj) {
+            if (this.spriteObj.hasOwnProperty(key)) {
+                this.r.addChild(this.spriteObj[key]);
+            }
+        }
+    }
+
+    action1() {
+        if (!this.action1Intr) {
+            this.action1Intr = setTimeout(() => {
+                this.action1Intr = null;
+            }, 2000);
+
+            return true;
+        }
+
+        return false;
+    }
+}
+
 class Game {
     constructor() {
         this.renderer = new PIXI.WebGLRenderer({
@@ -292,8 +333,8 @@ class Game {
         const promArr = [
             new Promise((jo) => {
                 const conn = () => {
-                    // this.socket = io("http://localhost", {
-                    this.socket = io({
+                    this.socket = io("http://localhost", {
+                    // this.socket = io({
                         path: "/s1",
                         transports: ['websocket'],
                     });
@@ -514,8 +555,55 @@ class Game {
         beach.on("click", () => this.changeRoom(5));
         this.gameCont.addChild(beach);
 
-        this.padoru = this.newPadoru({x: 0, y: 0, icon: "padoruOriginal", name: this.name});
-        this.gameCont.addChild(this.padoru.r);
+        const kuroArr = [
+            new PIXI.Sprite.from("kurome1"),
+            new PIXI.Sprite.from("kurome2"),
+            new PIXI.Sprite.from("kurome3"),
+            new PIXI.Sprite.from("kurome4"),
+            new PIXI.Sprite.from("kurome5"),
+            new PIXI.Sprite.from("kurome6"),
+            new PIXI.Sprite.from("kurome7"),
+            new PIXI.Sprite.from("kurome8")
+        ];
+        for(const s of kuroArr) {
+            s.x = 1100;
+            s.y = 270;
+            s.visible = false;
+        }
+        kuroArr[0].visible = true;
+        kuroArr[0].interactive = true;
+        kuroArr[0].buttonMode = true;
+        this.gameCont.addChild(...kuroArr);
+
+        kuroArr[0].on("click", () => {
+            let i = 0;
+            this.roomIntr = setInterval(() => {
+                kuroArr.forEach((element, index) => {
+                    if (i == index) element.visible = true;
+                    else element.visible = false;
+                });
+                
+                if (++i > kuroArr.length - 1) {
+                    kuroArr.forEach((element, index) => {
+                        element.visible = false;
+                    });
+                    kuroArr[0].visible = true;
+                    clearInterval(this.roomIntr);
+                }
+            }, 150);
+        });
+
+        const padoruMegumin = this.getPadoruChanger(100, 920, "padoruMegumin");
+        this.gameCont.addChild(padoruMegumin.r);
+
+        if(!this.padoru) {
+            this.padoru = this.newPadoru({x: 0, y: 0, icon: "padoruOriginal", name: this.name});
+            this.gameCont.addChild(this.padoru.r);
+        } else {
+            this.padoru.r.x = this.spawnData.x;
+            this.padoru.r.y = this.spawnData.y;
+            this.gameCont.addChild(this.padoru.r);
+        }
 
         for (const p of data) {
             const padoru = this.newPadoru(p);
@@ -575,6 +663,10 @@ class Game {
         door.buttonMode = true;
         door.on("click", () => this.changeRoom(3));
         this.gameCont.addChild(door);
+
+        this.gameCont.addChild(this.getPadoruChanger(900, 450, "padoru10").r);
+        this.gameCont.addChild(this.getPadoruChanger(1080, 450, "padoru11").r);
+        this.gameCont.addChild(this.getPadoruChanger(1400, 450, "padoru12").r);
 
         this.padoru.r.x = this.spawnData.x;
         this.padoru.r.y = this.spawnData.y;
@@ -673,12 +765,14 @@ class Game {
         kanna.on("click", () => this.kannaSound.play());
         this.gameCont.addChild(kanna);
 
-        this.padoru = this.newPadoru({
-            x: 0,
-            y: 0,
-            icon: "padoruOriginal",
-            name: this.name
-        });
+        this.gameCont.addChild(this.getPadoruChanger(1170, 1000, "padoru9").r);
+        this.gameCont.addChild(this.getPadoruChanger(1300, 1000, "padoru4").r);
+        this.gameCont.addChild(this.getPadoruChanger(1460, 1000, "padoru5").r);
+        this.gameCont.addChild(this.getPadoruChanger(1610, 1000, "padoru6").r);
+        this.gameCont.addChild(this.getPadoruChanger(1780, 1000, "padoru7").r);
+
+        this.padoru.r.x = this.spawnData.x;
+        this.padoru.r.y = this.spawnData.y;
         this.gameCont.addChild(this.padoru.r);
 
         for (const p of data) {
@@ -732,12 +826,12 @@ class Game {
             if(++i > aquaArr.length - 1) i = 0;
         }, 150);
 
-        this.padoru = this.newPadoru({
-            x: 0,
-            y: 0,
-            icon: "padoruOriginal",
-            name: this.name
-        });
+        this.gameCont.addChild(this.getPadoruChanger(220, 680, "padoru1").r);
+        this.gameCont.addChild(this.getPadoruChanger(370, 550, "padoru2").r);
+        this.gameCont.addChild(this.getPadoruChanger(530, 530, "padoru3").r);
+
+        this.padoru.r.x = this.spawnData.x;
+        this.padoru.r.y = this.spawnData.y;
         this.gameCont.addChild(this.padoru.r);
 
         for (const p of data) {
@@ -773,6 +867,7 @@ class Game {
         });
         s.on("new", data => {
             if (data.id != this.socket.id) {
+                console.log("new", data);
                 data.x = this.spawnData.x;
                 data.y = this.spawnData.y;
                 data.s = this.spawnData.s;
@@ -809,6 +904,21 @@ class Game {
                 }
             }
         });
+        s.on("padoruChange", data => {
+            if(data.id != this.socket.id) {
+                if(this.padoruArr[data.id]) { 
+                    this.gameCont.removeChild(this.padoruArr[data.id].r);
+                    const padoru = this.newPadoru({
+                        x: this.padoruArr[data.id].r.x,
+                        y: this.padoruArr[data.id].r.y,
+                        icon: data.icon,
+                        name: this.padoruArr[data.id].name
+                    });
+                    this.padoruArr[data.id] = padoru;
+                    this.gameCont.addChild(padoru.r);
+                }
+            }
+        });
         s.on("dis", data => {
             this.padoruArr[data.id] && this.padoruArr[data.id].suicide();
             delete this.padoruArr[data.id];
@@ -826,6 +936,8 @@ class Game {
         switch(data.icon) {
             case "padoruOriginal":
                 return new PadoruOriginal(data);
+            default:
+                return new PadoruGeneric(data);
         }
     }
 
@@ -856,6 +968,30 @@ class Game {
         this.socket.emit("room" + id, {
             name: this.name
         });
+    }
+
+    getPadoruChanger(x, y, icon) {
+        const padoru = this.newPadoru({
+            x,
+            y,
+            icon
+        });
+        padoru.r.interactive = true;
+        padoru.r.buttonMode = true;
+        padoru.r.on("click", () => {
+            padoru.r.interactive = false
+            padoru.r.buttonMode = false;
+            padoru.setName(this.name);
+
+            this.gameCont.removeChild(this.padoru.r);
+            this.padoru = padoru;
+
+            this.socket.emit("padoruChange", {
+                icon
+            });
+        });
+
+        return padoru;
     }
 
     test(id) {
