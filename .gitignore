@@ -1,6 +1,7 @@
 /app/node_modules
+/app/dist
+
 /logs/*
 /temp/*
-/app/dist
 
 !/**/.gitkeep
