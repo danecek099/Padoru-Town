@@ -5,12 +5,8 @@ body {
     overflow: hidden;
     position: relative;
     /* font-family: 'Lucida Sans Unicode', 'Lucida Grande', sans-serif; */
-    background-image: url("padoruBack4-min.png");
+    background-image: url("padoruBack4.png");
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-}
-
-#loginContainer {
-    /* display: none; */
 }

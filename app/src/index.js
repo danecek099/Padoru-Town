@@ -333,8 +333,8 @@ class Game {
         const promArr = [
             new Promise((jo) => {
                 const conn = () => {
-                    this.socket = io("http://localhost", {
-                    // this.socket = io({
+                    // this.socket = io("http://localhost", {
+                    this.socket = io({
                         path: "/s1",
                         transports: ['websocket'],
                     });
