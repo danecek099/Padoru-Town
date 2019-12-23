@@ -53,6 +53,10 @@ export default {
         {name: "padoru9", dir: "assets/padoru/padoru9.png"},
         {name: "padoru10", dir: "assets/padoru/padoru10.png"},
         {name: "padoru11", dir: "assets/padoru/padoru11.png"},
-        {name: "padoru12", dir: "assets/padoru/padoru12.png"}
+        {name: "padoru12", dir: "assets/padoru/padoru12.png"},
+        {name: "gold", dir: "assets/gold.png"},
+        {name: "redditSilver", dir: "assets/redditSilver.png"},
+        {name: "redditGold", dir: "assets/redditGold.png"},
+        {name: "redditPlatinum", dir: "assets/redditPlatinum.png"}
     ]
 }

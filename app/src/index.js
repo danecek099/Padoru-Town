@@ -21,6 +21,8 @@ class Padoru {
         this.r.x = this.x;
         this.r.y = this.y;
 
+        this.badge = null;
+
         this.setName(data.name);
 
         // this.border = new PIXI.Graphics();
@@ -108,6 +110,17 @@ class Padoru {
         this.nameText.x = -this.nameText.width / 2;
         this.nameText.y = -this.s / 2 - 20;
         this.r.addChild(this.nameText);
+    }
+    setBadge(icon) {
+        if(icon) {
+            this.nameText.removeChildren();
+            const badge = new PIXI.Sprite.from(icon);
+            badge.height = badge.width = 30;
+            badge.x = -38;
+            badge.y = -7;
+            this.nameText.addChild(badge);
+            this.badge = icon;
+        }
     }
 
     action1() {}
@@ -267,7 +280,7 @@ class PadoruGeneric extends Padoru {
 class Game {
     constructor() {
         this.renderer = new PIXI.WebGLRenderer({
-            antialias: true,
+            // antialias: true,
             powerPreference: "high-performance",
             resolution: S.resolution,
         });
@@ -283,7 +296,8 @@ class Game {
 
         this.mainStage = new PIXI.Container();
         this.gameCont = new PIXI.Container();
-        this.mainStage.addChild(this.gameCont);
+        this.supremeCont = new PIXI.Container();
+        this.mainStage.addChild(this.gameCont, this.supremeCont);
 
         Present.prototype.gameCont = this.gameCont;
 
@@ -300,6 +314,8 @@ class Game {
         this.name = this.getName();
         this.keysInUse = false;
         this.roomIntr = null;
+        this.gold = 250;
+        this.allGold = 0;
         
         this.b = new PIXI.extras.Bump();
 
@@ -333,9 +349,10 @@ class Game {
         const promArr = [
             new Promise((jo) => {
                 const conn = () => {
-                    // this.socket = io("http://localhost", {
-                    this.socket = io({
-                        path: "/s1",
+                    this.socket = io("http://localhost", {
+                    // this.socket = io({
+                        // path: "/s1",
+                        path: "/random",
                         transports: ['websocket'],
                     });
 
@@ -484,10 +501,37 @@ class Game {
     }
 
     gameInit() {
+        this.goldR = new PIXI.Sprite.from("gold");
+        this.goldR.height = this.goldR.width = 100;
+        this.goldR.interactive = true;
+        this.goldR.buttonMode = true;
+        this.goldR.on("click", () => {
+            this.socket.emit("gold");
+            this.gameCont.removeChild(this.goldR);
+        });
+
+        this.goldText = new PIXI.Text("Reddit Gold: " + this.gold, {
+            fontSize: 24,
+            fontWeight: "400",
+            fill: 0xffffff
+        });
+        this.goldText.x = 20;
+        this.goldText.y = 20;
+
+        const chatBox = new PIXI.Graphics();
+        chatBox.beginFill(0x808599);
+        chatBox.alpha = .6;
+        chatBox.drawRoundedRect(this.goldText.x - 8, this.goldText.y - 8, this.goldText.width + 32, this.goldText.height + 16, 5);
+        chatBox.endFill();
+
+        this.supremeCont.addChild(chatBox, this.goldText);
+
         Keyboard.events.on('pressed_Digit1', null, (keyCode, event) => {
-            if (!this.keysInUse && this.padoru.action1()) {
+            if (this.gold >= 25 && !this.keysInUse && this.padoru.action1()) {
                 this.padoruSound.play();
                 this.socket.emit("action1");
+                this.gold -= 25;
+                this.goldText.text = "Gold: " + this.gold;
             }
         });
         Keyboard.events.on('pressed_Digit2', null, (keyCode, event) => {
@@ -521,6 +565,9 @@ class Game {
         this.spawnData.y = 620;
         clearInterval(this.roomIntr);
         this.roomIntr = null;
+
+        this.gameCont.removeChildren();
+        this.padoruArr = [];
 
         this.back = PIXI.Sprite.from("mainBack");
         this.gameCont.addChild(this.back);
@@ -605,13 +652,17 @@ class Game {
             this.gameCont.addChild(this.padoru.r);
         }
 
-        for (const p of data) {
+        for (const p of data.padoru) {
             const padoru = this.newPadoru(p);
             this.gameCont.addChild(padoru.r);
             this.padoruArr[padoru.id] = padoru;
         }
 
         if(!this.gameInitDone) this.gameInit();
+        
+        if (data.gold) {
+            this.showGold(data.gold.x, data.gold.y);
+        }
     }
 
     room2init(data) {
@@ -672,13 +723,15 @@ class Game {
         this.padoru.r.y = this.spawnData.y;
         this.gameCont.addChild(this.padoru.r);
 
-        for (const p of data) {
+        for (const p of data.padoru) {
             const padoru = this.newPadoru(p);
             this.gameCont.addChild(padoru.r);
             this.padoruArr[padoru.id] = padoru;
         }
 
-        if(!this.gameInitDone) this.gameInit();
+        if (data.gold) {
+            this.showGold(data.gold.x, data.gold.y);
+        }
     }
 
     room3init(data) {
@@ -725,13 +778,15 @@ class Game {
         this.padoru.r.y = this.spawnData.y;
         this.gameCont.addChild(this.padoru.r);
 
-        for (const p of data) {
+        for (const p of data.padoru) {
             const padoru = this.newPadoru(p);
             this.gameCont.addChild(padoru.r);
             this.padoruArr[padoru.id] = padoru;
         }
 
-        if (!this.gameInitDone) this.gameInit();
+        if (data.gold) {
+            this.showGold(data.gold.x, data.gold.y);
+        }
     }
 
     room4init(data) {
@@ -775,13 +830,15 @@ class Game {
         this.padoru.r.y = this.spawnData.y;
         this.gameCont.addChild(this.padoru.r);
 
-        for (const p of data) {
+        for (const p of data.padoru) {
             const padoru = this.newPadoru(p);
             this.gameCont.addChild(padoru.r);
             this.padoruArr[padoru.id] = padoru;
         }
 
-        if (!this.gameInitDone) this.gameInit();
+        if (data.gold) {
+            this.showGold(data.gold.x, data.gold.y);
+        }
     }
 
     room5init(data) {
@@ -834,13 +891,15 @@ class Game {
         this.padoru.r.y = this.spawnData.y;
         this.gameCont.addChild(this.padoru.r);
 
-        for (const p of data) {
+        for (const p of data.padoru) {
             const padoru = this.newPadoru(p);
             this.gameCont.addChild(padoru.r);
             this.padoruArr[padoru.id] = padoru;
         }
 
-        if (!this.gameInitDone) this.gameInit();
+        if (data.gold) {
+            this.showGold(data.gold.x, data.gold.y);
+        }
     }
 
     setIo() {
@@ -919,6 +978,26 @@ class Game {
                 }
             }
         });
+        s.on("gold", data => {
+            this.showGold(data.x, data.y);
+        });
+        s.on("gotGold", data => {
+            if(data.id == this.socket.id) {
+                this.gold += 250;
+                this.goldText.text = "Reddit Gold: " + this.gold;
+
+                this.allGold++;
+                if(this.allGold >= 30) {
+                    this.padoru.setBadge("redditPlatinum");
+                } else if(this.allGold >= 15) {
+                    this.padoru.setBadge("redditGold");
+                } else if(this.allGold >= 5) {
+                    this.padoru.setBadge("redditSilver");
+                } 
+            }
+
+            this.gameCont.removeChild(this.goldR);
+        });
         s.on("dis", data => {
             this.padoruArr[data.id] && this.padoruArr[data.id].suicide();
             delete this.padoruArr[data.id];
@@ -942,7 +1021,6 @@ class Game {
     }
 
     sizr() {
-        console.log("resize");
         const aspectRatio = this.renderer.width / this.renderer.height;
         if (aspectRatio > 1) this.scaleRatio = this.renderer.height / S.visibleArea;
         else this.scaleRatio = this.renderer.width / S.visibleArea;
@@ -982,16 +1060,21 @@ class Game {
             padoru.r.interactive = false
             padoru.r.buttonMode = false;
             padoru.setName(this.name);
+            padoru.setBadge(this.padoru.badge);
 
             this.gameCont.removeChild(this.padoru.r);
             this.padoru = padoru;
 
-            this.socket.emit("padoruChange", {
-                icon
-            });
+            this.socket.emit("padoruChange", {icon});
         });
 
         return padoru;
+    }
+
+    showGold(x, y) {
+        this.goldR.x = x;
+        this.goldR.y = y;
+        this.gameCont.addChild(this.goldR);
     }
 
     test(id) {
@@ -1000,5 +1083,6 @@ class Game {
 }
 
 window.onload = function() {
-    window.game = new Game();
+    // window.game = new Game();
+    (function() {new Game()})()
 }

@@ -19,10 +19,23 @@ class Padoru {
 }
 
 class Room {
-    constructor(id, io) {
+    constructor(id, io, x, y) {
         this.roomId = id;
         this.io = io;
+        this.x = x;
+        this.y = y;
         this.padoruArr = [];
+
+        this.goldR = false;
+        setInterval(() => {
+            if(!this.goldR) {
+                const x = Math.random() * ((this.x - 200) - 200) + 200;
+                const y = Math.random() * ((this.y - 200) - 200) + 200;
+
+                this.goldR = {x, y};
+                this.io.in(this.roomId).emit("gold", {x, y});
+            }
+        }, 10000);
     }
 
     addPlayer(socket, data) {
@@ -30,9 +43,12 @@ class Room {
         socket.roomId = this.roomId;
         console.log("room" + this.roomId, data.name);
 
-        socket.emit("room" + (this.roomId + 1), Object.values(this.padoruArr));
+        socket.emit("room" + (this.roomId + 1), {
+            padoru: Object.values(this.padoruArr),
+            gold: this.goldR
+        });
 
-        const padoru = new Padoru(socket.id, data.name, data.icon || null);
+        const padoru = new Padoru(socket.id, data.name, data.icon || null, data.allGold || null);
         this.padoruArr[padoru.id] = padoru;
 
         this.io.in(this.roomId).emit("new", padoru);
@@ -70,6 +86,12 @@ class Room {
             icon: data.icon
         });
     }
+    gold(data, socket) {
+        if(this.goldR) {
+            this.goldR = false;
+            this.io.in(this.roomId).emit("gotGold", {id: socket.id});
+        }
+    }
     removePlayer(socket) {
         if (this.padoruArr[socket.id]) {
             return new Promise((jo) => {
@@ -94,11 +116,11 @@ class Logic {
         this.io = Sio().listen("300" + roomId);
 
         this.roomArr = [
-            new Room(0, this.io),
-            new Room(1, this.io),
-            new Room(2, this.io),
-            new Room(3, this.io),
-            new Room(4, this.io)
+            new Room(0, this.io, 1920, 1080),
+            new Room(1, this.io, 1980, 1020),
+            new Room(2, this.io, 1920, 1080),
+            new Room(3, this.io, 2048, 1152),
+            new Room(4, this.io, 2048, 1152)
         ];
 
         this.setIo();
@@ -124,6 +146,7 @@ class Logic {
                     socket.on("room5", data => this.room5(data, socket));
                     socket.on("chat", data => this.chat(data, socket));
                     socket.on("padoruChange", data => this.padoruChange(data, socket));
+                    socket.on("gold", data => this.gold(data, socket));
 
                     socket.eventsAdded = true;
                 }
@@ -163,6 +186,11 @@ class Logic {
     padoruChange(data, socket) {
         if (socket.roomId || socket.roomId === 0) {
             this.roomArr[socket.roomId].padoruChange(data, socket);
+        }
+    }
+    gold(data, socket) {
+        if (socket.roomId || socket.roomId === 0) {
+            this.roomArr[socket.roomId].gold(data, socket);
         }
     }
     room1(data, socket) {
