@@ -41,7 +41,7 @@ class Room {
     addPlayer(socket, data) {
         socket.join(this.roomId);
         socket.roomId = this.roomId;
-        console.log("room" + this.roomId, data.name);
+        // console.log("room" + this.roomId, data.name);
 
         socket.emit("room" + (this.roomId + 1), {
             padoru: Object.values(this.padoruArr),
@@ -115,6 +115,8 @@ class Logic {
         this.roomId = roomId;
         this.io = Sio().listen("300" + roomId);
 
+        this.connCount = 0;
+
         this.roomArr = [
             new Room(0, this.io, 1920, 1080),
             new Room(1, this.io, 1980, 1020),
@@ -125,15 +127,23 @@ class Logic {
 
         this.setIo();
 
-        console.log("Server online");
+        console.log(`Server ${this.roomId} online`);
+
+        let time = Date.now();
+        setInterval(() => {
+            let time2 = Date.now();
+            console.log(`[${this.roomId}] ${this.connCount} conn, delta ${time2 - time}`);
+            time = time2;
+        }, 3000);
     }
 
     setIo() {
         this.io.on('connection', socket => {
             socket.emit("show", "SERVER: Connected to w" + this.roomId);
-            console.log("Client " + socket.id);
+            // console.log("Client", socket.id);
 
             socket.on("ready", d => {
+                // console.log("Ready", socket.id);
                 if (!socket.eventsAdded) {
                     socket.on("move", data => this.move(data, socket));
                     socket.on("disconnect", data => this.disconnect(data, socket));
@@ -150,6 +160,8 @@ class Logic {
 
                     socket.eventsAdded = true;
                 }
+
+                this.connCount++;
 
                 this.room1(d, socket);
             });
@@ -264,8 +276,14 @@ class Logic {
     disconnect(data, socket) {
         if (socket.roomId || socket.roomId === 0) {
             this.roomArr[socket.roomId].removePlayer(socket);
+            // console.log("Dis", socket.id);
+            this.connCount--;
         }
     }
 }
 
-module.exports = Logic;
+// module.exports = Logic;
+
+process.on("message", id => {
+    new Logic(id);
+});

@@ -1,0 +1,22 @@
+config:
+  target: "http://localhost"
+  socketio:
+    path: "/random"
+    query: "EIO=3&transport=websocket"
+    transports: ["websocket"]
+  phases:
+    - duration: 30
+      arrivalRate: 40
+scenarios:
+  - engine: "socketio"
+    flow:
+      - emit:
+          channel: "ready"
+          data: {name: "Brenda"}
+      - think: 35
+      # - loop:
+      #     - emit:
+      #         channel: "move"
+      #         data: {x: 100, y: 100}
+      #     - think: 0.066
+      #   count: 380
