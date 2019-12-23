@@ -1,22 +1,23 @@
 config:
   target: "http://localhost"
+  # target: "http://oof100.eu"
   socketio:
     path: "/random"
     query: "EIO=3&transport=websocket"
     transports: ["websocket"]
   phases:
     - duration: 30
-      arrivalRate: 40
+      arrivalRate: 20
 scenarios:
   - engine: "socketio"
     flow:
       - emit:
           channel: "ready"
           data: {name: "Brenda"}
-      - think: 35
-      # - loop:
-      #     - emit:
-      #         channel: "move"
-      #         data: {x: 100, y: 100}
-      #     - think: 0.066
-      #   count: 380
+      - think: 5
+      - loop:
+          - emit:
+              channel: "move"
+              data: {x: 100, y: 100}
+          - think: 0.066
+        count: 380

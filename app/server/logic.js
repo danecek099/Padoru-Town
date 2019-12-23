@@ -282,8 +282,8 @@ class Logic {
     }
 }
 
-// module.exports = Logic;
-
 process.on("message", id => {
     new Logic(id);
 });
+
+module.exports = Logic;
