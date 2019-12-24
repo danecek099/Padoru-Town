@@ -282,7 +282,7 @@ class Game {
         if (window.location.hash != "#mobile" && PIXI.utils.isMobile.any) {
             // window.open(location + 'mobilePage.html', '_blank')
 
-            window.location.href = 'mobilePage.html';
+            window.location.href = 'mobilePage.html#mobile';
 
             return;
         }

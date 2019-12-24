@@ -26,6 +26,10 @@ module.exports = {
       template: "./src/index.html",
       filename: "./index.html"
     }),
+    new HtmlWebPackPlugin({
+      template: "./src/mobilePage.html",
+      filename: "./mobilePage.html"
+    }),
     new CopyWebpackPlugin([{
       from: "./src/assets", to: "./assets"
     }])
