@@ -7,17 +7,17 @@ config:
     transports: ["websocket"]
   phases:
     - duration: 30
-      arrivalRate: 20
+      arrivalRate: 10
 scenarios:
   - engine: "socketio"
     flow:
       - emit:
           channel: "ready"
           data: {name: "Brenda"}
-      - think: 5
+      - think: 1
       - loop:
           - emit:
               channel: "move"
               data: {x: 100, y: 100}
           - think: 0.066
-        count: 380
+        count: 1000

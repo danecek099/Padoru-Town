@@ -54,7 +54,7 @@ class Room {
         this.io.in(this.roomId).emit("new", padoru);
     }
     move(data, socket) {
-         this.io.in(this.roomId).emit("move", {
+        this.io.in(this.roomId).volatile.emit("move", {
             id: socket.id,
             x: data.x,
             y: data.y
@@ -148,30 +148,31 @@ class Logic {
             socket.emit("show", "SERVER: Connected to w" + this.roomId);
             // console.log("Client", socket.id);
 
-            socket.on("ready", d => {
-                // console.log("Ready", socket.id);
-                if (!socket.eventsAdded) {
-                    socket.on("move", data => this.move(data, socket));
-                    socket.on("disconnect", data => this.disconnect(data, socket));
-                    socket.on("action1", data => this.action1(data, socket));
-                    socket.on("action2", data => this.action2(data, socket));
-                    socket.on("room1", data => this.room1(data, socket));
-                    socket.on("room2", data => this.room2(data, socket));
-                    socket.on("room3", data => this.room3(data, socket));
-                    socket.on("room4", data => this.room4(data, socket));
-                    socket.on("room5", data => this.room5(data, socket));
-                    socket.on("chat", data => this.chat(data, socket));
-                    socket.on("padoruChange", data => this.padoruChange(data, socket));
-                    socket.on("gold", data => this.gold(data, socket));
-
-                    socket.eventsAdded = true;
-                }
-
-                this.connCount++;
-
-                this.room1(d, socket);
-            });
+            socket.on("ready", data => this.ready(data, socket));
         });
+    }
+    ready(d, socket) {
+        // console.log("Ready", socket.id);
+        if (!socket.eventsAdded) {
+            socket.on("move", data => this.move(data, socket));
+            socket.on("disconnect", data => this.disconnect(data, socket));
+            socket.on("action1", data => this.action1(data, socket));
+            socket.on("action2", data => this.action2(data, socket));
+            socket.on("room1", data => this.room1(data, socket));
+            socket.on("room2", data => this.room2(data, socket));
+            socket.on("room3", data => this.room3(data, socket));
+            socket.on("room4", data => this.room4(data, socket));
+            socket.on("room5", data => this.room5(data, socket));
+            socket.on("chat", data => this.chat(data, socket));
+            socket.on("padoruChange", data => this.padoruChange(data, socket));
+            socket.on("gold", data => this.gold(data, socket));
+
+            socket.eventsAdded = true;
+        }
+
+        this.connCount++;
+
+        this.room1(d, socket);
     }
     remove(socket) {
         if (socket.roomId || socket.roomId === 0) {
