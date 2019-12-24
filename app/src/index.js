@@ -279,6 +279,8 @@ class PadoruGeneric extends Padoru {
 
 class Game {
     constructor() {
+        console.log("Hi there stranger, it's super easy to hack the game, but try not to break it for others...");
+
         this.renderer = new PIXI.WebGLRenderer({
             // antialias: true,
             powerPreference: "high-performance",
@@ -359,7 +361,7 @@ class Game {
                     const intr = setInterval(() => {
                         clearInterval(intr);
                         this.socket.close();
-                        console.log("new conn try");
+                        // console.log("new conn try");
                         
                         conn();
                     }, 3000);
@@ -924,12 +926,12 @@ class Game {
         });
         s.on("show", data => console.log(data));
         s.on("connect", data => {
-            console.log("(re)connected");
+            // console.log("(re)connected");
             s.emit("ready", {name: this.name});
         });
         s.on("new", data => {
             if (data.id != this.socket.id) {
-                console.log("new", data);
+                // console.log("new", data);
                 data.x = this.spawnData.x;
                 data.y = this.spawnData.y;
                 data.s = this.spawnData.s;
