@@ -140,10 +140,10 @@ class Logic {
     setIo() {
         this.io.on('connection', socket => {
 
-            if(this.connCount > 120) {
-                socket.emit("show", `SERVER: Server ${this.roomId} full`);
-                return;
-            }
+            // if(this.connCount > 0) {
+            //     socket.emit("show", `SERVER: Server ${this.roomId} full`);
+            //     return;
+            // }
 
             socket.emit("show", "SERVER: Connected to w" + this.roomId);
             // console.log("Client", socket.id);
