@@ -531,7 +531,7 @@ class Game {
                 this.padoruSound.play();
                 this.socket.emit("action1");
                 this.gold -= 25;
-                this.goldText.text = "Gold: " + this.gold;
+                this.goldText.text = "Reddit Gold: " + this.gold;
             }
         });
         Keyboard.events.on('pressed_Digit2', null, (keyCode, event) => {
@@ -623,25 +623,28 @@ class Game {
         this.gameCont.addChild(...kuroArr);
 
         kuroArr[0].on("click", () => {
-            let i = 0;
-            this.roomIntr = setInterval(() => {
-                kuroArr.forEach((element, index) => {
-                    if (i == index) element.visible = true;
-                    else element.visible = false;
-                });
-                
-                if (++i > kuroArr.length - 1) {
+            if(!this.roomIntr) {
+                let i = 0;
+                this.roomIntr = setInterval(() => {
                     kuroArr.forEach((element, index) => {
-                        element.visible = false;
+                        if (i == index) element.visible = true;
+                        else element.visible = false;
                     });
-                    kuroArr[0].visible = true;
-                    clearInterval(this.roomIntr);
-                }
-            }, 150);
+                    
+                    if (++i > kuroArr.length - 1) {
+                        kuroArr.forEach((element, index) => {
+                            element.visible = false;
+                        });
+                        kuroArr[0].visible = true;
+                        clearInterval(this.roomIntr);
+                        this.roomIntr = null;
+                    }
+                }, 150);
+            }
         });
 
-        const padoruMegumin = this.getPadoruChanger(100, 920, "padoruMegumin");
-        this.gameCont.addChild(padoruMegumin.r);
+        this.gameCont.addChild(this.getPadoruChanger(100, 920, "padoruMegumin").r);
+        this.gameCont.addChild(this.getDefaultPadoruChanger(300, 920).r);
 
         if(!this.padoru) {
             this.padoru = this.newPadoru({x: 0, y: 0, icon: "padoruOriginal", name: this.name});
@@ -1066,6 +1069,31 @@ class Game {
             this.padoru = padoru;
 
             this.socket.emit("padoruChange", {icon});
+        });
+
+        return padoru;
+    }
+
+    getDefaultPadoruChanger(x, y) {
+        const padoru = this.newPadoru({
+            x,
+            y,
+            icon: "padoruOriginal"
+        });
+        padoru.r.interactive = true;
+        padoru.r.buttonMode = true;
+        padoru.r.on("click", () => {
+            padoru.r.interactive = false
+            padoru.r.buttonMode = false;
+            padoru.setName(this.name);
+            padoru.setBadge(this.padoru.badge);
+
+            this.gameCont.removeChild(this.padoru.r);
+            this.padoru = padoru;
+
+            this.socket.emit("padoruChange", {
+                icon: "padoruOriginal"
+            });
         });
 
         return padoru;
