@@ -279,6 +279,14 @@ class PadoruGeneric extends Padoru {
 
 class Game {
     constructor() {
+        if (window.location.hash != "#mobile" && PIXI.utils.isMobile.any) {
+            // window.open(location + 'mobilePage.html', '_blank')
+
+            window.location.href = 'mobilePage.html';
+
+            return;
+        }
+
         console.log("Hi there stranger, it's super easy to hack the game, but try not to break it for others...");
 
         this.renderer = new PIXI.WebGLRenderer({
